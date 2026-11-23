@@ -4,7 +4,8 @@
 // doing the same work with less allocation: one-pass Markdown rendering
 // (no token objects), chunk-based inline rendering (no per-character escape),
 // index-based front-matter parsing (no whole-text split + rejoin), regex
-// slugs, and a flat compiled template form rendered by a tight loop.
+// slugs, and templates compiled to a flat op list rendered by one loop
+// (V8's string ropes make plain += the cheapest way to build a page).
 //
 // No dependencies, no I/O, no clock, no randomness: the answer is a function
 // of the input alone, exactly as the reference's is.
@@ -575,14 +576,13 @@ function truthy(v) {
 }
 
 /**
- * `ops` rendered in `scope` ({ vars, parent }), appended as chunks to
- * `parts` (joined once by the caller, so an include costs no intermediate
- * string). `ctx` holds the parsed templates (a Map of name to ops; a
+ * `ops` rendered in `scope` ({ vars, parent }). `ctx` holds the parsed templates (a Map of name to ops; a
  * template that did not parse absent) and the include depth. Loops and
  * branches are handled by an explicit control stack instead of recursion,
  * so a template with many loop iterations costs no call depth per item.
  */
-function renderOps(ops, scope, ctx, depth, parts) {
+function renderOps(ops, scope, ctx, depth) {
+  let out = '';
   // Control stack entries: {pc, end, scope, name, xs, k} for an active for.
   const ctrl = [];
   let pc = 0;
@@ -590,9 +590,9 @@ function renderOps(ops, scope, ctx, depth, parts) {
   while (pc < ops.length) {
     const op = ops[pc];
     switch (op[0]) {
-      case 0: parts.push(op[1]); pc++; break;
-      case 1: parts.push(escapeHtml(textOf(lookup(cur, op[1])))); pc++; break;
-      case 2: parts.push(textOf(lookup(cur, op[1]))); pc++; break;
+      case 0: out += op[1]; pc++; break;
+      case 1: out += escapeHtml(textOf(lookup(cur, op[1]))); pc++; break;
+      case 2: out += textOf(lookup(cur, op[1])); pc++; break;
       case 3: {
         const v = truthy(lookup(cur, op[1]));
         if (v !== op[2]) pc++;
@@ -613,7 +613,7 @@ function renderOps(ops, scope, ctx, depth, parts) {
       }
       case 5: {
         const t = ctx.templates.get(op[1]);
-        if (t !== undefined && depth < INCLUDE_DEPTH) renderOps(t, cur, ctx, depth + 1, parts);
+        if (t !== undefined && depth < INCLUDE_DEPTH) out += renderOps(t, cur, ctx, depth + 1);
         pc++;
         break;
       }
@@ -639,6 +639,7 @@ function renderOps(ops, scope, ctx, depth, parts) {
       case 8: pc++; break; // endif
     }
   }
+  return out;
 }
 
 /* -------------------------------------------------------------------- build */
@@ -870,9 +871,7 @@ export function run(input) {
   const render = (name, vars) => {
     const ops = templates.get(name);
     if (ops === undefined) return null;
-    const parts = [];
-    renderOps(ops, { vars: { site, tags: allTags, recent, ...vars }, parent: null }, ctx, 0, parts);
-    return parts.join('');
+    return renderOps(ops, { vars: { site, tags: allTags, recent, ...vars }, parent: null }, ctx, 0);
   };
   const output = {};
   for (let i = 0; i < kept.length; i++) {
