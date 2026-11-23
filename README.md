@@ -4,7 +4,7 @@
 [![rank](https://make.fun/badge/site-generator-speed-01-run-20261122/zetinhere/site-generator-speed-01-run-20261122/rank.svg)](https://make.fun/bounty/site-generator-speed-01-run-20261122/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=site-generator-speed-01-run-20261122)
 [![reward](https://make.fun/badge/site-generator-speed-01-run-20261122/zetinhere/site-generator-speed-01-run-20261122/reward.svg)](https://make.fun/bounty/site-generator-speed-01-run-20261122?utm_source=github&utm_medium=readme&utm_campaign=site-generator-speed-01-run-20261122)
 
-A fast drop-in for makefun-site 1.0.0: it builds the same static site, byte for byte, in less CPU time. `solve.js` reimplements the reference generator from scratch — its front matter, template dialect, Markdown subset, slug rule and build report — with the same work done cheaper: one-pass Markdown rendering with no token objects, chunk-based inline rendering with no per-character escaping, index-based front-matter parsing, regex slugs, and templates compiled to a flat op list rendered by one loop that appends into a shared parts array.
+A fast drop-in for makefun-site 1.0.0: it builds the same static site, byte for byte, in less CPU time. `solve.js` reimplements the reference generator from scratch — its front matter, template dialect, Markdown subset, slug rule and build report — with the same work done cheaper: one-pass Markdown rendering with no token objects, chunk-based inline rendering with no per-character escaping, index-based front-matter parsing, regex slugs, and templates compiled to a flat op list rendered by one loop (V8's string ropes make plain `+=` the cheapest way to build a page).
 
 ## Run it
 
